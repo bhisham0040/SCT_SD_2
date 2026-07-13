@@ -1,0 +1,196 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .game { padding: 1.5rem 1rem; max-width: 640px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+  .title { font-size: 20px; font-weight: 500; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+  .stats { display: flex; gap: 20px; }
+  .stat { text-align: center; }
+  .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-val { font-size: 22px; font-weight: 500; color: var(--text-accent); }
+  .stat-val.streak { color: var(--text-success); }
+  .diff-row { display: flex; gap: 6px; margin-bottom: 1.25rem; align-items: center; }
+  .diff-label { font-size: 12px; color: var(--text-muted); margin-right: 4px; }
+  .diff-btn { padding: 5px 14px; border: 0.5px solid var(--border-strong); border-radius: var(--radius); background: var(--surface-1); color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .diff-btn:hover { background: var(--surface-2); color: var(--text-primary); }
+  .diff-btn.active { background: var(--bg-accent); border-color: var(--border-accent); color: var(--text-accent); }
+  .card { background: var(--surface-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.5rem 1.5rem 1.25rem; border-top: 2px solid var(--fill-accent); }
+  .range-hint { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 0.75rem; }
+  .prompt-area { min-height: 64px; text-align: center; margin-bottom: 0.75rem; }
+  .prompt-text { font-size: 17px; font-weight: 500; color: var(--text-primary); line-height: 1.5; }
+  .prompt-sub { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+  .hint-icon { font-size: 40px; text-align: center; margin: 0.25rem 0; min-height: 52px; display: flex; align-items: center; justify-content: center; }
+  .tries-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 0.75rem; }
+  .tries-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .tries-num { font-size: 22px; font-weight: 500; color: var(--text-accent); min-width: 28px; text-align: center; }
+  .dots { display: flex; gap: 5px; justify-content: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .dot { width: 14px; height: 14px; border-radius: 3px; background: var(--bg-success); border: 0.5px solid var(--border-success); transition: background 0.2s; }
+  .dot.used { background: var(--surface-1); border-color: var(--border); }
+  .input-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 0.85rem; }
+  .guess-input { width: 110px; text-align: center; font-size: 20px; font-weight: 500; padding: 8px 12px; border: 0.5px solid var(--border-strong); border-radius: var(--radius); background: var(--surface-1); color: var(--text-primary); outline: none; transition: border-color 0.15s; }
+  .guess-input:focus { border-color: var(--fill-accent); box-shadow: 0 0 0 2px var(--bg-accent); }
+  .guess-btn { padding: 8px 22px; background: var(--fill-accent); color: var(--on-accent); border: none; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .guess-btn:hover { background: var(--fill-accent-hover); }
+  .guess-btn:active { transform: scale(0.97); }
+  .history { font-size: 12px; color: var(--text-muted); text-align: center; min-height: 18px; }
+  .btn-row { display: flex; gap: 8px; justify-content: center; margin-top: 1rem; }
+  .action-btn { padding: 7px 18px; border: 0.5px solid var(--border-strong); border-radius: var(--radius); background: var(--surface-1); color: var(--text-secondary); font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
+  .action-btn:hover { background: var(--surface-2); color: var(--text-primary); }
+  .action-btn.new { border-color: var(--border-success); color: var(--text-success); }
+  .action-btn.reveal { border-color: var(--border-warning); color: var(--text-warning); }
+  .prompt-text.win { color: var(--text-success); }
+  .prompt-text.lose { color: var(--text-danger); }
+  .prompt-text.hot { color: #f97316; }
+  .prompt-text.warn { color: var(--text-warning); }
+  .prompt-text.cold { color: var(--text-accent); }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+  .shake { animation: shake 0.35s ease; }
+</style>
+
+<div class="game">
+  <div class="header">
+    <div class="title"><i class="ti ti-target" aria-hidden="true" style="font-size:22px;color:var(--fill-accent)"></i> Mind Reader</div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Score</div><div class="stat-val" id="score">0</div></div>
+      <div class="stat"><div class="stat-label">Streak</div><div class="stat-val streak" id="streak">0</div></div>
+    </div>
+  </div>
+
+  <div class="diff-row">
+    <span class="diff-label">Difficulty:</span>
+    <button class="diff-btn" onclick="setDiff('Easy')">Easy</button>
+    <button class="diff-btn active" onclick="setDiff('Medium')">Medium</button>
+    <button class="diff-btn" onclick="setDiff('Hard')">Hard</button>
+    <button class="diff-btn" onclick="setDiff('Legend')">Legend</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="range-hint" id="rangeHint">Guess a number between 1 and 100</div>
+    <div class="prompt-area">
+      <div class="prompt-text" id="promptText">I'm thinking of a number... can you find it?</div>
+      <div class="prompt-sub" id="promptSub"></div>
+    </div>
+    <div class="hint-icon" id="hintIcon">🤔</div>
+    <div class="tries-row">
+      <span class="tries-label">Attempts left</span>
+      <span class="tries-num" id="triesNum">7</span>
+    </div>
+    <div class="dots" id="dots"></div>
+    <div class="input-row">
+      <input class="guess-input" id="gInput" type="number" placeholder="?" min="1" max="100" onkeydown="if(event.key==='Enter')submitGuess()">
+      <button class="guess-btn" onclick="submitGuess()"><i class="ti ti-send" aria-hidden="true"></i> Guess</button>
+    </div>
+    <div class="history" id="history"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="action-btn new" onclick="newGame()"><i class="ti ti-refresh" aria-hidden="true"></i> New game</button>
+    <button class="action-btn reveal" onclick="revealAnswer()"><i class="ti ti-bulb" aria-hidden="true"></i> Reveal</button>
+  </div>
+</div>
+
+<script>
+const DIFFS = {
+  Easy:   { low:1, high:50,   tries:10 },
+  Medium: { low:1, high:100,  tries:7  },
+  Hard:   { low:1, high:500,  tries:8  },
+  Legend: { low:1, high:1000, tries:10 }
+};
+let secret, triesLeft, maxTries, history2=[], active=false, diff='Medium';
+let score=0, streak=0;
+
+function setDiff(d){
+  diff=d;
+  document.querySelectorAll('.diff-btn').forEach(b=>{b.classList.toggle('active',b.textContent===d)});
+  newGame();
+}
+
+function newGame(){
+  const cfg=DIFFS[diff];
+  secret=Math.floor(Math.random()*(cfg.high-cfg.low+1))+cfg.low;
+  triesLeft=cfg.tries; maxTries=cfg.tries; history2=[]; active=true;
+  document.getElementById('gInput').max=cfg.high;
+  document.getElementById('gInput').min=cfg.low;
+  document.getElementById('rangeHint').textContent=`Guess a number between 1 and ${cfg.high}`;
+  setPrompt("I'm thinking of a number... can you find it?",'','🤔','');
+  document.getElementById('history').textContent='';
+  document.getElementById('gInput').value='';
+  document.getElementById('gInput').disabled=false;
+  document.getElementById('gInput').focus();
+  renderDots(); updateTries();
+}
+
+function renderDots(){
+  const el=document.getElementById('dots'); el.innerHTML='';
+  for(let i=0;i<maxTries;i++){
+    const d=document.createElement('div');
+    d.className='dot'+(i>=triesLeft?' used':'');
+    el.appendChild(d);
+  }
+}
+function updateTries(){ document.getElementById('triesNum').textContent=triesLeft; }
+function setPrompt(text,sub,icon,cls){
+  const p=document.getElementById('promptText');
+  p.className='prompt-text'+(cls?' '+cls:'');
+  p.textContent=text;
+  document.getElementById('promptSub').textContent=sub;
+  document.getElementById('hintIcon').textContent=icon;
+}
+
+function submitGuess(){
+  if(!active){ newGame(); return; }
+  const raw=document.getElementById('gInput').value.trim();
+  if(!raw||isNaN(raw)){ shakeCard(); return; }
+  const g=parseInt(raw);
+  const cfg=DIFFS[diff];
+  if(g<cfg.low||g>cfg.high){ setPrompt(`Between ${cfg.low} and ${cfg.high} only!`,'','⚠️','warn'); shakeCard(); return; }
+  triesLeft--; history2.push(g);
+  document.getElementById('history').textContent='Tried: '+history2.join(' › ');
+  document.getElementById('gInput').value='';
+  renderDots(); updateTries();
+
+  if(g===secret){
+    const used=maxTries-triesLeft;
+    const pts=Math.max(10,100-used*8);
+    score+=pts; streak++;
+    document.getElementById('score').textContent=score;
+    document.getElementById('streak').textContent=streak;
+    setPrompt(`Correct! It was ${secret}!`,`+${pts} pts · ${used} guess${used!==1?'es':''}`, '🏆','win');
+    document.getElementById('gInput').disabled=true; active=false;
+  } else if(triesLeft===0){
+    streak=0; document.getElementById('streak').textContent=0;
+    setPrompt(`Out of guesses!`,`The number was ${secret}`,'😱','lose');
+    document.getElementById('gInput').disabled=true; active=false;
+  } else {
+    const diff2=Math.abs(g-secret);
+    const up=g<secret;
+    let text,sub,icon,cls;
+    if(diff2===1){     text='Burning hot — just 1 away!'; icon='🔥'; cls='hot'; }
+    else if(diff2<=5){ text='Very warm, so close!'; icon='♨️'; cls='hot'; }
+    else if(diff2<=15){text='Getting warmer...'; icon='🌡️'; cls='warn'; }
+    else if(diff2<=40){text='Cool — keep searching'; icon='❄️'; cls='cold'; }
+    else {             text='Ice cold!'; icon='🧊'; cls='cold'; }
+    sub=(up?'Go higher ↑':'Go lower ↓');
+    setPrompt(text,sub,icon,cls);
+    shakeCard();
+  }
+}
+
+function shakeCard(){
+  const c=document.getElementById('card');
+  c.classList.remove('shake');
+  void c.offsetWidth;
+  c.classList.add('shake');
+}
+
+function revealAnswer(){
+  if(!active) return;
+  setPrompt(`The secret number was ${secret}`,'Better luck next time!','🙈','warn');
+  document.getElementById('gInput').disabled=true;
+  active=false; streak=0;
+  document.getElementById('streak').textContent=0;
+}
+
+newGame();
+</script>
